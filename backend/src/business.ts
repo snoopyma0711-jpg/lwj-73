@@ -36,6 +36,19 @@ async function assertLockersNotLinked(lockerIds: string[], excludeTicketId?: str
       throw new BizError('LOCKER_BUSY', `柜门已被占用，无法重复分配`);
     }
   }
+  const inPh = lockerIds.map(() => '?').join(',');
+  const active = await db.all<{ id: string; request_type: string }>(
+    `SELECT id, request_type FROM tickets
+     WHERE from_locker_id IN (${inPh})
+       AND status IN ('QUEUING','CALLED','IN_PROGRESS')
+       AND request_type IN ('RETRIEVE','SWAP')`,
+    lockerIds
+  );
+  const conflict = active.find(r => r.id !== excludeTicketId);
+  if (conflict) {
+    const label = conflict.request_type === 'RETRIEVE' ? '取包' : '换箱';
+    throw new BizError('LOCKER_HAS_ACTIVE_TICKET', `该柜门已有一条${label}请求在处理中，不能重复申请`);
+  }
 }
 
 async function assertVisitorNoActiveSwap(visitorId: string, excludeTicketId?: string): Promise<void> {
@@ -66,6 +79,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
     if (input.request_type === 'RETRIEVE') {
       if (!input.from_locker_id) throw new BizError('BAD_REQUEST', '取包必须指定柜门');
       await assertLockerOwned(input.from_locker_id, input.visitor_id);
+      await assertLockersNotLinked([input.from_locker_id]);
     }
     if (input.request_type === 'STORE') {
       if (!input.target_size) throw new BizError('BAD_REQUEST', '存包必须指定目标尺寸');
@@ -317,9 +331,10 @@ export async function requeueIfNeeded(): Promise<Ticket[]> {
             status: 'QUEUING',
             requeue_count: newCount,
             held_until: null,
+            created_at: now,
           };
           await updateTicket(t.id, patch);
-          await logAudit(t.id, 'REQUEUE', oldStatus, 'QUEUING', null, '系统', `超时回队（第${newCount}次）`);
+          await logAudit(t.id, 'REQUEUE', oldStatus, 'QUEUING', null, '系统', `超时回队（第${newCount}次）→ 自动排至队尾`);
           finalT = { ...t, ...patch };
         }
         await refreshQueuePositions();

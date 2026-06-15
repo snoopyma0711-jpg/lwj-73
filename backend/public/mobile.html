@@ -206,7 +206,7 @@
     <div class="field"><label>手机号</label><input type="text" id="uPhone" placeholder="仅用于紧急联系" /></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeUserModal()">取消</button>
-      <button class="btn btn-primary" onclick="saveUser()">保存</button>
+      <button class="btn btn-primary" onclick="saveUserModal()">保存</button>
     </div>
   </div>
 </div>
@@ -228,7 +228,7 @@ let currentSize = 'M';
 let currentLocker = null;
 let state = null;
 
-function saveUser(){ localStorage.setItem('comicc_user', JSON.stringify(user)); }
+function persistUser(){ localStorage.setItem('comicc_user', JSON.stringify(user)); }
 
 function renderUser(){
   const initial = user.name.charAt(0);
@@ -253,11 +253,11 @@ function openUserModal(){
   document.getElementById('userModal').classList.add('show');
 }
 function closeUserModal(){ document.getElementById('userModal').classList.remove('show'); }
-function saveUser(){
+function saveUserModal(){
   user.id = document.getElementById('uId').value.trim() || user.id;
   user.name = document.getElementById('uName').value.trim() || user.name;
   user.phone = document.getElementById('uPhone').value.trim();
-  saveUser(); renderUser(); closeUserModal();
+  persistUser(); renderUser(); closeUserModal();
   toast('信息已更新', 'ok');
 }
 
