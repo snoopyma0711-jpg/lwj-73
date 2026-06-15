@@ -1,0 +1,13 @@
+{
+  "name": "lwj-73",
+  "version": "1.0.0",
+  "description": "寄存柜临时换箱协同台（漫展现场运营）",
+  "scripts": {
+    "up": "docker compose up -d --build",
+    "start": "docker compose up -d --build",
+    "stop": "docker compose down",
+    "logs": "docker compose logs -f",
+    "reset": "docker compose down -v && ./reset.sh",
+    "dev": "cd backend && npm install && npm run dev"
+  }
+}

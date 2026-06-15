@@ -1,0 +1,22 @@
+services:
+  locker-platform:
+    build: ./backend
+    container_name: comic-locker
+    ports:
+      - "3000:3000"
+    volumes:
+      - locker_data:/app/data
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/snapshot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  locker_data:
+    driver: local

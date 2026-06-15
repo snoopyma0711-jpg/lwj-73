@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<meta name="theme-color" content="#6366f1" />
+<title>寄存服务 · 观众端</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh}
+  body{max-width:480px;margin:0 auto;position:relative;padding-bottom:80px}
+  .app-header{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;padding:20px 18px 60px;border-bottom-left-radius:24px;border-bottom-right-radius:24px}
+  .app-title{font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .app-sub{font-size:12px;opacity:.9;margin-top:4px}
+  .user-card{background:white;border-radius:16px;padding:16px;margin:-40px 16px 16px;box-shadow:0 10px 25px -8px rgba(99,102,241,.35);display:flex;align-items:center;gap:12px}
+  .avatar{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#a855f7,#ec4899);display:flex;align-items:center;justify-content:center;font-weight:800;color:white;font-size:18px;flex-shrink:0}
+  .user-info{flex:1;min-width:0}
+  .user-row{display:flex;align-items:center;gap:8px}
+  .user-name{font-size:15px;font-weight:700;color:#0f172a}
+  .user-id{font-size:11px;background:#e0e7ff;color:#4f46e5;padding:2px 7px;border-radius:999px;font-weight:600;font-variant-numeric:tabular-nums}
+  .user-phone{font-size:12px;color:#64748b;margin-top:4px}
+  .user-edit{padding:6px 10px;background:#f1f5f9;border-radius:8px;font-size:11px;color:#6366f1;font-weight:600;flex-shrink:0;cursor:pointer}
+
+  .tabbar{display:grid;grid-template-columns:repeat(3,1fr);margin:0 16px 16px;background:white;border-radius:14px;padding:6px;gap:4px;box-shadow:0 4px 12px -4px rgba(15,23,42,.1)}
+  .tab{padding:10px 8px;border-radius:10px;text-align:center;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .tab.active{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;box-shadow:0 4px 12px -2px rgba(99,102,241,.5)}
+  .tab .ic{font-size:20px}
+
+  .form-card{background:white;border-radius:16px;padding:18px;margin:0 16px 16px;box-shadow:0 4px 12px -4px rgba(15,23,42,.08)}
+  .form-card h3{font-size:15px;font-weight:700;margin-bottom:14px;color:#0f172a}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px}
+  .field input,.field select,.field textarea{width:100%;padding:12px 14px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;color:#0f172a;font-size:14px;outline:none;font-family:inherit;transition:all .15s}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:#6366f1;background:white}
+  .field textarea{min-height:70px;resize:vertical}
+  .size-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .size-opt{padding:14px 8px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;text-align:center;cursor:pointer;transition:all .15s}
+  .size-opt.active{border-color:#6366f1;background:#eef2ff}
+  .size-opt .sz{font-size:18px;font-weight:900;color:#4f46e5}
+  .size-opt .desc{font-size:10px;color:#64748b;margin-top:4px}
+  .locker-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+  .locker-opt{padding:10px 6px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;text-align:center;cursor:pointer;font-size:12px;font-weight:700;transition:all .15s;font-variant-numeric:tabular-nums}
+  .locker-opt.active{border-color:#6366f1;background:#eef2ff;color:#4f46e5}
+  .locker-opt.occupied{background:#fff7ed;border-color:#fdba74;color:#9a3412}
+  .locker-opt.fault{background:#fef2f2;border-color:#fca5a5;color:#991b1b;text-decoration:line-through}
+  .hint{font-size:11px;color:#94a3b8;margin-top:4px}
+
+  .submit-btn{display:block;width:calc(100% - 32px);margin:0 16px;padding:16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;border-radius:14px;font-size:16px;font-weight:800;box-shadow:0 10px 24px -6px rgba(99,102,241,.6);cursor:pointer;transition:all .15s}
+  .submit-btn:active{transform:scale(.98)}
+  .submit-btn:disabled{opacity:.5;filter:grayscale(.4);box-shadow:none;cursor:not-allowed}
+
+  .section-title{padding:8px 20px;font-size:13px;font-weight:700;color:#64748b;display:flex;align-items:center;justify-content:space-between}
+
+  .mytickets{padding:0 16px;display:flex;flex-direction:column;gap:10px}
+  .myticket{background:white;border-radius:14px;padding:14px;box-shadow:0 4px 12px -4px rgba(15,23,42,.08);position:relative;overflow:hidden}
+  .myticket::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+  .mt-QUEUING::before{background:#a855f7}
+  .mt-CALLED::before{background:#f97316}
+  .mt-IN_PROGRESS::before{background:#6366f1}
+  .mt-COMPLETED::before{background:#10b981}
+  .mt-CANCELLED::before{background:#94a3b8}
+  .mt-TIMEOUT::before{background:#f59e0b}
+  .mt-FAULT::before{background:#ef4444}
+
+  .mt-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .mt-tid{font-size:18px;font-weight:900;color:#0f172a;font-variant-numeric:tabular-nums;letter-spacing:1px}
+  .mt-type{padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
+  .type-STORE{background:#d1fae5;color:#065f46}
+  .type-RETRIEVE{background:#dbeafe;color:#1e40af}
+  .type-SWAP{background:#ede9fe;color:#5b21b6}
+  .mt-status{margin-left:auto;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase}
+  .st-QUEUING{background:#f5f3ff;color:#6d28d9}
+  .st-CALLED{background:#fff7ed;color:#c2410c;animation:pulse 1.2s infinite}
+  .st-IN_PROGRESS{background:#eef2ff;color:#4338ca}
+  .st-COMPLETED{background:#d1fae5;color:#065f46}
+  .st-CANCELLED{background:#f1f5f9;color:#475569}
+  .st-TIMEOUT{background:#fef3c7;color:#92400e}
+  .st-FAULT{background:#fee2e2;color:#991b1b}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  .mt-body{font-size:12px;color:#475569;display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+  .mt-body .lbl{color:#94a3b8}
+  .mt-body .val{color:#0f172a;font-weight:600}
+  .mt-route{margin-top:10px;padding:8px 12px;background:#f8fafc;border-radius:10px;font-size:12px;color:#334155;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .mt-route .arrow{color:#6366f1;font-weight:800}
+  .mt-countdown{margin-top:10px;background:linear-gradient(135deg,#fff7ed,#ffedd5);border:2px solid #fdba74;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between}
+  .cd-label{font-size:12px;color:#9a3412;font-weight:600}
+  .cd-val{font-size:20px;font-weight:900;color:#c2410c;font-variant-numeric:tabular-nums;animation:blink 1s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+  .cd-note{font-size:11px;color:#b45309;margin-top:4px}
+  .mt-note{margin-top:10px;font-size:11px;color:#64748b;padding:8px 12px;background:#f8fafc;border-radius:8px;line-height:1.5}
+
+  .bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;width:calc(100% - 32px);max-width:448px;background:rgba(15,23,42,.9);backdrop-filter:blur(16px);border-radius:999px;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px;box-shadow:0 10px 30px -4px rgba(15,23,42,.4)}
+  .bn-btn{padding:10px;text-align:center;border-radius:999px;font-size:12px;font-weight:700;color:#cbd5e1;cursor:pointer;transition:all .15s}
+  .bn-btn.active{background:white;color:#4f46e5}
+
+  .toast-wrap{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:8px;width:90%;max-width:400px;pointer-events:none}
+  .toast{padding:12px 16px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 10px 25px -4px rgba(0,0,0,.2);animation:slideDown .3s}
+  .toast.ok{background:#065f46;color:#d1fae5}
+  .toast.err{background:#991b1b;color:#fee2e2}
+  .toast.info{background:#1e40af;color:#dbeafe}
+  @keyframes slideDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+
+  .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:800;display:none;align-items:flex-end;justify-content:center}
+  .modal-mask.show{display:flex}
+  .modal{background:white;border-top-left-radius:24px;border-top-right-radius:24px;padding:22px 20px 30px;width:100%;max-width:480px;animation:slideUp .3s}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal h3{font-size:17px;font-weight:800;margin-bottom:18px;text-align:center}
+  .modal-actions{display:flex;gap:10px;margin-top:20px}
+  .btn{flex:1;padding:14px;border-radius:12px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white}
+  .btn-ghost{background:#f1f5f9;color:#475569}
+
+  .locker-status-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .lchip{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+  .lchip-occ{background:#fff7ed;color:#9a3412}
+  .lchip-idle{background:#d1fae5;color:#065f46}
+  .lchip-fault{background:#fee2e2;color:#991b1b}
+
+  .success-banner{background:linear-gradient(135deg,#065f46,#064e3b);color:white;padding:20px;border-radius:16px;margin:0 16px 16px;text-align:center}
+  .success-tid{font-size:36px;font-weight:900;letter-spacing:3px;font-variant-numeric:tabular-nums;margin:10px 0 4px}
+  .success-msg{font-size:13px;opacity:.9}
+  .success-pos{display:inline-block;margin-top:12px;padding:8px 16px;background:rgba(255,255,255,.15);border-radius:999px;font-size:13px;font-weight:700}
+
+  .typeLabel = {STORE:'存包',RETRIEVE:'取包',SWAP:'换箱'};
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="app-title">🎒 漫展寄存服务</div>
+  <div class="app-sub">存包 · 取包 · 临时换箱 · 快速叫号</div>
+</div>
+
+<div class="user-card" id="userCard"></div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<div class="bottom-nav">
+  <div class="bn-btn active" id="bnNew" onclick="switchTab('new')">📝 发起请求</div>
+  <div class="bn-btn" id="bnMine" onclick="switchTab('mine')">🎫 我的单号</div>
+</div>
+
+<div id="view-new">
+  <div class="tabbar">
+    <div class="tab active" data-type="STORE" onclick="selectType('STORE')">
+      <div class="ic">📥</div><div>存包</div>
+    </div>
+    <div class="tab" data-type="RETRIEVE" onclick="selectType('RETRIEVE')">
+      <div class="ic">📤</div><div>取包</div>
+    </div>
+    <div class="tab" data-type="SWAP" onclick="selectType('SWAP')">
+      <div class="ic">🔄</div><div>换箱</div>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <h3 id="formTitle">📥 发起存包请求</h3>
+    <div id="formSize" class="field">
+      <label>选择柜型尺寸</label>
+      <div class="size-grid">
+        <div class="size-opt" data-sz="S" onclick="selectSize('S')">
+          <div class="sz">S</div><div class="desc">手提包/背包</div>
+        </div>
+        <div class="size-opt active" data-sz="M" onclick="selectSize('M')">
+          <div class="sz">M</div><div class="desc">大背包/登机箱</div>
+        </div>
+        <div class="size-opt" data-sz="L" onclick="selectSize('L')">
+          <div class="sz">L</div><div class="desc">cos道具/大箱</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="formLocker" class="field" style="display:none">
+      <label>选择当前占用的柜门</label>
+      <div class="locker-status-bar">
+        <span class="lchip lchip-occ">● 我的柜</span>
+        <span class="lchip lchip-idle">○ 空闲</span>
+        <span class="lchip lchip-fault">✕ 故障</span>
+      </div>
+      <div class="locker-picker" id="lockerPicker"></div>
+      <div class="hint">仅能选择自己寄存时占用的柜门，用于取包或换箱</div>
+    </div>
+
+    <div class="field">
+      <label>原因 / 备注</label>
+      <input type="text" id="fReason" placeholder="例如：cos道具箱、买周边装不下、赶场取物…" maxlength="50" />
+    </div>
+  </div>
+
+  <button class="submit-btn" onclick="submitForm()">✓ 提交排队请求</button>
+
+  <div class="section-title">📊 现场空闲情况 <span id="liveStats" style="font-weight:600;color:#4f46e5">加载中…</span></div>
+  <div style="padding:0 16px 20px" id="lockerSummary"></div>
+</div>
+
+<div id="view-mine" style="display:none">
+  <div class="section-title">🎫 我的请求记录 <span style="color:#94a3b8;font-weight:500" id="countInfo">共 0 条</span></div>
+  <div class="mytickets" id="myTickets"></div>
+</div>
+
+<div class="modal-mask" id="userModal">
+  <div class="modal">
+    <h3>编辑我的信息</h3>
+    <div class="field"><label>观众ID</label><input type="text" id="uId" /></div>
+    <div class="field"><label>姓名 / 昵称</label><input type="text" id="uName" /></div>
+    <div class="field"><label>手机号</label><input type="text" id="uPhone" placeholder="仅用于紧急联系" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeUserModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveUser()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+const typeLabel = {STORE:'存包',RETRIEVE:'取包',SWAP:'换箱'};
+const sizeLabel = {S:'小(S)',M:'中(M)',L:'大(L)'};
+const sizeLabelZh = {S:'小柜',M:'中柜',L:'大柜'};
+const statusLabel = {QUEUING:'排队中',CALLED:'已叫号,请前往!',IN_PROGRESS:'办理中',COMPLETED:'已完成',CANCELLED:'已取消',TIMEOUT:'已超时',FAULT:'故障'};
+
+let user = JSON.parse(localStorage.getItem('comicc_user') || 'null') || {
+  id: 'V' + Math.floor(1000 + Math.random()*9000),
+  name: '游客' + Math.floor(100+Math.random()*900),
+  phone: ''
+};
+let currentType = 'STORE';
+let currentSize = 'M';
+let currentLocker = null;
+let state = null;
+
+function saveUser(){ localStorage.setItem('comicc_user', JSON.stringify(user)); }
+
+function renderUser(){
+  const initial = user.name.charAt(0);
+  document.getElementById('userCard').innerHTML = `
+    <div class="avatar">${initial}</div>
+    <div class="user-info">
+      <div class="user-row">
+        <span class="user-name">${user.name}</span>
+        <span class="user-id">${user.id}</span>
+      </div>
+      <div class="user-phone">${user.phone || '未留联系方式，点击右侧设置'}</div>
+    </div>
+    <div class="user-edit" onclick="openUserModal()">编辑</div>
+  `;
+}
+renderUser();
+
+function openUserModal(){
+  document.getElementById('uId').value = user.id;
+  document.getElementById('uName').value = user.name;
+  document.getElementById('uPhone').value = user.phone;
+  document.getElementById('userModal').classList.add('show');
+}
+function closeUserModal(){ document.getElementById('userModal').classList.remove('show'); }
+function saveUser(){
+  user.id = document.getElementById('uId').value.trim() || user.id;
+  user.name = document.getElementById('uName').value.trim() || user.name;
+  user.phone = document.getElementById('uPhone').value.trim();
+  saveUser(); renderUser(); closeUserModal();
+  toast('信息已更新', 'ok');
+}
+
+function switchTab(tab){
+  document.getElementById('bnNew').classList.toggle('active', tab==='new');
+  document.getElementById('bnMine').classList.toggle('active', tab==='mine');
+  document.getElementById('view-new').style.display = tab==='new' ? '' : 'none';
+  document.getElementById('view-mine').style.display = tab==='mine' ? '' : 'none';
+  if(tab==='mine') renderMyTickets();
+}
+
+function selectType(t){
+  currentType = t;
+  currentLocker = null;
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.type===t));
+  const icons = {STORE:'📥',RETRIEVE:'📤',SWAP:'🔄'};
+  document.getElementById('formTitle').textContent = `${icons[t]} 发起${typeLabel[t]}请求`;
+  document.getElementById('formSize').style.display = (t==='STORE'||t==='SWAP') ? '' : 'none';
+  document.getElementById('formLocker').style.display = (t==='RETRIEVE'||t==='SWAP') ? '' : 'none';
+  if(t==='RETRIEVE'||t==='SWAP') renderLockerPicker();
+}
+
+function selectSize(s){
+  currentSize = s;
+  document.querySelectorAll('.size-opt').forEach(el => el.classList.toggle('active', el.dataset.sz===s));
+}
+
+function renderLockerPicker(){
+  if(!state) return;
+  const mine = state.completed.filter(t => t.visitor_id === user.id && t.request_type === 'STORE' && t.status === 'COMPLETED');
+  const myLockerIds = new Set();
+  mine.forEach(t => { if(t.to_locker_id) myLockerIds.add(t.to_locker_id); });
+  const html = state.lockers.map(l => {
+    let cls = '';
+    if(l.status === 'FAULT') cls = 'fault';
+    else if(myLockerIds.has(l.id) || (l.ticket_id && state.completed.find(x=>x.id===l.ticket_id && x.visitor_id===user.id))) cls = 'occupied active';
+    else cls = '';
+    const selected = currentLocker === l.id;
+    return `<div class="locker-opt ${cls} ${selected?'active':''}" onclick="onLockerSelect('${l.id}')" ${l.status==='FAULT'?'style="pointer-events:none"':''}>${l.id}</div>`;
+  }).join('');
+  document.getElementById('lockerPicker').innerHTML = html;
+  if(!currentLocker){
+    const firstMine = state.lockers.find(l => {
+      const t = state.completed.find(x=>x.id===l.ticket_id && x.visitor_id===user.id && x.status==='COMPLETED');
+      return !!t;
+    });
+    if(firstMine) currentLocker = firstMine.id;
+    if(currentLocker) renderLockerPicker();
+  }
+}
+function onLockerSelect(id){
+  const l = state.lockers.find(x => x.id === id);
+  if(!l || l.status === 'FAULT') return;
+  currentLocker = id;
+  renderLockerPicker();
+}
+
+function renderLockerSummary(){
+  if(!state) return;
+  const total = state.lockers.length;
+  const idle = state.lockers.filter(l=>l.status==='IDLE').length;
+  const fault = state.lockers.filter(l=>l.status==='FAULT').length;
+  document.getElementById('liveStats').innerHTML = `空闲 ${idle} / ${total}，故障 ${fault}`;
+  const zones = {};
+  state.lockers.forEach(l => {
+    if(!zones[l.zone]) zones[l.zone] = {total:0,idle:0,fault:0,bySize:{S:{i:0,t:0},M:{i:0,t:0},L:{i:0,t:0}}};
+    zones[l.zone].total++;
+    zones[l.zone].bySize[l.size].t++;
+    if(l.status==='IDLE'){ zones[l.zone].idle++; zones[l.zone].bySize[l.size].i++; }
+    if(l.status==='FAULT') zones[l.zone].fault++;
+  });
+  document.getElementById('lockerSummary').innerHTML = Object.entries(zones).map(([zn,z]) => {
+    return `<div style="background:white;border-radius:12px;padding:14px;box-shadow:0 2px 8px -2px rgba(0,0,0,.06);margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:800;color:#0f172a">${zn}</div>
+        <div style="font-size:12px;color:#64748b">闲 <b style="color:#10b981">${z.idle}</b> / ${z.total}${z.fault?` · <span style="color:#ef4444">障${z.fault}</span>`:''}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        ${['S','M','L'].map(s => {
+          const bs = z.bySize[s]; const ratio = bs.t ? Math.round(bs.i/bs.t*100) : 0;
+          const barColor = ratio>60?'#10b981':ratio>20?'#f59e0b':'#ef4444';
+          return `<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:11px;font-weight:700;color:#64748b">${sizeLabelZh[s]}</div>
+            <div style="font-size:16px;font-weight:900;color:${barColor};font-variant-numeric:tabular-nums;margin:4px 0">${bs.i}/${bs.t}</div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden"><div style="height:100%;width:${ratio}%;background:${barColor}"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function submitForm(){
+  if(!user.name){ toast('请先设置姓名', 'err'); openUserModal(); return; }
+  const body = {visitor_id:user.id, visitor_name:user.name, visitor_phone:user.phone, request_type:currentType};
+  if(currentType==='STORE' || currentType==='SWAP') body.target_size = currentSize;
+  if(currentType==='RETRIEVE' || currentType==='SWAP'){
+    if(!currentLocker){ toast('请选择当前占用的柜门', 'err'); return; }
+    body.from_locker_id = currentLocker;
+  }
+  const r = document.getElementById('fReason').value.trim();
+  if(r) body.reason = r;
+  try{
+    const res = await fetch('/api/tickets', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const d = await res.json();
+    if(!d.ok){ toast(d.message, 'err'); return; }
+    toast(`${typeLabel[currentType]}请求已提交！单号 #${d.data.id}`, 'ok');
+    document.getElementById('fReason').value = '';
+    switchTab('mine');
+  }catch(e){ toast('网络错误', 'err'); }
+}
+
+function renderMyTickets(){
+  if(!state) return;
+  const all = [...state.queuing,...state.called,...state.inProgress,...state.faults,...state.completed]
+    .filter(t => t.visitor_id === user.id)
+    .sort((a,b) => (b.updated_at||b.created_at) - (a.updated_at||a.created_at));
+  document.getElementById('countInfo').textContent = `共 ${all.length} 条`;
+  document.getElementById('myTickets').innerHTML = all.length ? all.map(t => {
+    const now = Date.now();
+    const remain = (t.status==='CALLED' && t.held_until) ? Math.max(0, Math.ceil((t.held_until-now)/1000)) : 0;
+    let route = '';
+    if(t.request_type==='STORE') route = `<span>分配柜</span> <span class="val">${t.to_locker_id || (t.target_size?sizeLabelZh[t.target_size]:'待分配')}</span>`;
+    if(t.request_type==='RETRIEVE') route = `<span>取件柜</span> <span class="val">${t.from_locker_id || '?'}</span>`;
+    if(t.request_type==='SWAP') route = `<span>原柜</span> <span class="val">${t.from_locker_id}</span> <span class="arrow">→</span> <span>目标</span> <span class="val">${t.to_locker_id || (t.target_size?sizeLabelZh[t.target_size]+' 待分配':'待分配')}</span>`;
+    return `<div class="myticket mt-${t.status}">
+      <div class="mt-head">
+        <span class="mt-tid">#${t.id}</span>
+        <span class="mt-type type-${t.request_type}">${typeLabel[t.request_type]}</span>
+        <span class="mt-status st-${t.status}">${statusLabel[t.status]}</span>
+      </div>
+      <div class="mt-body">
+        <div><span class="lbl">排队号</span> <span class="val">#${t.queue_position || (t.status==='QUEUING'?'待更新':'—')}</span></div>
+        <div><span class="lbl">回队</span> <span class="val">${t.requeue_count}/2</span></div>
+        <div><span class="lbl">创建</span> <span class="val">${fmtTime(t.created_at)}</span></div>
+        <div><span class="lbl">更新</span> <span class="val">${fmtTime(t.updated_at)}</span></div>
+      </div>
+      <div class="mt-route">${route}</div>
+      ${t.reason ? `<div class="mt-note">💬 ${t.reason}</div>` : ''}
+      ${t.result_note && (t.status==='COMPLETED'||t.status==='CANCELLED'||t.status==='TIMEOUT'||t.status==='FAULT') ? `<div class="mt-note" style="background:${t.status==='COMPLETED'?'#d1fae5':t.status==='FAULT'?'#fee2e2':'#f1f5f9'}">📌 ${t.result_note}${t.operator?' · 👷 '+t.operator:''}</div>` : ''}
+      ${t.status==='CALLED' ? `<div class="mt-countdown">
+        <div>
+          <div class="cd-label">📢 已为您保留，请尽快到服务台</div>
+          <div class="cd-note">超时将自动回到队尾，最多2次</div>
+        </div>
+        <div class="cd-val" id="cd-${t.id}">${remain}s</div>
+      </div>` : ''}
+      ${t.status==='QUEUING' && t.queue_position===1 ? `<div class="mt-note" style="background:#fef3c7;color:#92400e">🎯 当前排在第一位，即将叫号！</div>` : ''}
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:60px 20px;color:#94a3b8">
+    <div style="font-size:48px;margin-bottom:12px">🎫</div>
+    <div style="font-size:14px">您还没有任何请求记录</div>
+    <div style="font-size:12px;margin-top:6px">点击左下角「发起请求」开始</div>
+  </div>`;
+}
+function fmtTime(ts){
+  if(!ts) return '--';
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function tickCountdowns(){
+  if(!state) return;
+  state.called.filter(t=>t.visitor_id===user.id && t.held_until).forEach(t => {
+    const el = document.getElementById('cd-'+t.id);
+    if(el){
+      const r = Math.max(0, Math.ceil((t.held_until - Date.now())/1000));
+      el.textContent = r + 's';
+    }
+  });
+}
+setInterval(tickCountdowns, 1000);
+
+function toast(msg, type='info'){
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+fetch('/api/snapshot').then(r=>r.json()).then(d => {
+  state = d;
+  renderLockerPicker();
+  renderLockerSummary();
+  renderMyTickets();
+});
+setInterval(()=>fetch('/api/snapshot').then(r=>r.json()).then(d => {
+  state = d;
+  renderLockerSummary();
+  if(document.getElementById('view-mine').style.display !== 'none') renderMyTickets();
+  if((currentType==='RETRIEVE'||currentType==='SWAP') && document.getElementById('formLocker').style.display !== 'none') renderLockerPicker();
+}), 2000);
+
+if(typeof io !== 'undefined'){
+  try{
+    const s = io();
+    s.on('snapshot', d => {
+      state = d;
+      renderLockerSummary();
+      if(document.getElementById('view-mine').style.display !== 'none') renderMyTickets();
+      if((currentType==='RETRIEVE'||currentType==='SWAP') && document.getElementById('formLocker').style.display !== 'none') renderLockerPicker();
+    });
+  }catch(e){}
+}
+</script>
+</body>
+</html>
