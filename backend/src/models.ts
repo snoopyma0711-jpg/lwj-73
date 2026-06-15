@@ -51,6 +51,39 @@ export interface AuditLog {
   created_at: number;
 }
 
+export type ClosureStatus = 'PENDING' | 'MIGRATING' | 'COMPLETED' | 'CANCELLED';
+export type MigrationStatus = 'PENDING' | 'MIGRATING' | 'COMPLETED' | 'MANUAL';
+
+export interface ClosureOrder {
+  id: string;
+  locker_ids: string;
+  reason: string;
+  operator: string;
+  status: ClosureStatus;
+  total_affected: number;
+  completed_count: number;
+  created_at: number;
+  updated_at: number;
+  completed_at: number | null;
+}
+
+export interface Migration {
+  id: string;
+  closure_id: string;
+  visitor_id: string;
+  visitor_name: string;
+  visitor_phone: string | null;
+  from_locker_id: string;
+  to_locker_id: string | null;
+  status: MigrationStatus;
+  operator: string | null;
+  note: string | null;
+  queue_position: number | null;
+  created_at: number;
+  updated_at: number;
+  completed_at: number | null;
+}
+
 export const HOLD_SECONDS = 60;
 export const MAX_REQUEUE = 2;
 

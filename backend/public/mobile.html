@@ -89,7 +89,34 @@
   .cd-note{font-size:11px;color:#b45309;margin-top:4px}
   .mt-note{margin-top:10px;font-size:11px;color:#64748b;padding:8px 12px;background:#f8fafc;border-radius:8px;line-height:1.5}
 
-  .bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;width:calc(100% - 32px);max-width:448px;background:rgba(15,23,42,.9);backdrop-filter:blur(16px);border-radius:999px;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px;box-shadow:0 10px 30px -4px rgba(15,23,42,.4)}
+  .migration-card{background:white;border-radius:14px;padding:14px;box-shadow:0 4px 12px -4px rgba(15,23,42,.08);position:relative;overflow:hidden;margin-bottom:10px}
+  .migration-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+  .mg-PENDING::before{background:#f59e0b}
+  .mg-COMPLETED::before{background:#10b981}
+  .mg-MANUAL::before{background:#8b5cf6}
+  .mg-MIGRATING::before{background:#3b82f6}
+  .mg-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .mg-tid{font-size:15px;font-weight:900;color:#0f172a;font-variant-numeric:tabular-nums}
+  .mg-status{margin-left:auto;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700}
+  .mgs-PENDING{background:#fef3c7;color:#92400e}
+  .mgs-COMPLETED{background:#d1fae5;color:#065f46}
+  .mgs-MANUAL{background:#ede9fe;color:#5b21b6}
+  .mgs-MIGRATING{background:#dbeafe;color:#1e40af}
+  .mg-body{font-size:12px;color:#475569;display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+  .mg-body .lbl{color:#94a3b8}
+  .mg-body .val{color:#0f172a;font-weight:600}
+  .mg-route{margin-top:10px;padding:8px 12px;background:#f8fafc;border-radius:10px;font-size:12px;color:#334155;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .mg-route .arrow{color:#6366f1;font-weight:800}
+  .mg-progress{margin-top:10px}
+  .mg-progress-bar{background:#e2e8f0;border-radius:999px;height:6px;overflow:hidden;margin-top:6px}
+  .mg-progress-fill{height:100%;border-radius:999px;transition:width .3s}
+  .mg-progress-fill.PENDING{background:#f59e0b}
+  .mg-progress-fill.COMPLETED{background:#10b981}
+  .mg-progress-fill.MANUAL{background:#8b5cf6}
+  .mg-progress-fill.MIGRATING{background:#3b82f6}
+  .mg-note{margin-top:8px;font-size:11px;color:#64748b;padding:8px 12px;background:#f8fafc;border-radius:8px;line-height:1.5}
+
+  .bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;width:calc(100% - 32px);max-width:448px;background:rgba(15,23,42,.9);backdrop-filter:blur(16px);border-radius:999px;padding:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;box-shadow:0 10px 30px -4px rgba(15,23,42,.4)}
   .bn-btn{padding:10px;text-align:center;border-radius:999px;font-size:12px;font-weight:700;color:#cbd5e1;cursor:pointer;transition:all .15s}
   .bn-btn.active{background:white;color:#4f46e5}
 
@@ -138,6 +165,7 @@
 <div class="bottom-nav">
   <div class="bn-btn active" id="bnNew" onclick="switchTab('new')">📝 发起请求</div>
   <div class="bn-btn" id="bnMine" onclick="switchTab('mine')">🎫 我的单号</div>
+  <div class="bn-btn" id="bnMigration" onclick="switchTab('migration')">🔄 迁移状态</div>
 </div>
 
 <div id="view-new">
@@ -198,6 +226,11 @@
   <div class="mytickets" id="myTickets"></div>
 </div>
 
+<div id="view-migration" style="display:none">
+  <div class="section-title">🔄 我的迁移状态 <span style="color:#94a3b8;font-weight:500" id="migrationCountInfo">共 0 条</span></div>
+  <div style="padding:0 16px" id="myMigrations"></div>
+</div>
+
 <div class="modal-mask" id="userModal">
   <div class="modal">
     <h3>编辑我的信息</h3>
@@ -227,6 +260,7 @@ let currentType = 'STORE';
 let currentSize = 'M';
 let currentLocker = null;
 let state = null;
+let myMigrations = [];
 
 function persistUser(){ localStorage.setItem('comicc_user', JSON.stringify(user)); }
 
@@ -264,9 +298,12 @@ function saveUserModal(){
 function switchTab(tab){
   document.getElementById('bnNew').classList.toggle('active', tab==='new');
   document.getElementById('bnMine').classList.toggle('active', tab==='mine');
+  document.getElementById('bnMigration').classList.toggle('active', tab==='migration');
   document.getElementById('view-new').style.display = tab==='new' ? '' : 'none';
   document.getElementById('view-mine').style.display = tab==='mine' ? '' : 'none';
+  document.getElementById('view-migration').style.display = tab==='migration' ? '' : 'none';
   if(tab==='mine') renderMyTickets();
+  if(tab==='migration') renderMyMigrations();
 }
 
 function selectType(t){
@@ -458,9 +495,62 @@ if(typeof io !== 'undefined'){
       state = d;
       renderLockerSummary();
       if(document.getElementById('view-mine').style.display !== 'none') renderMyTickets();
+      if(document.getElementById('view-migration').style.display !== 'none') renderMyMigrations();
       if((currentType==='RETRIEVE'||currentType==='SWAP') && document.getElementById('formLocker').style.display !== 'none') renderLockerPicker();
     });
   }catch(e){}
+}
+
+async function loadMyMigrations(){
+  try{
+    const r = await fetch('/api/migrations/visitor/' + user.id);
+    const d = await r.json();
+    if(d.ok) myMigrations = d.data;
+  }catch(e){}
+}
+
+function renderMyMigrations(){
+  loadMyMigrations().then(() => {
+    const list = myMigrations;
+    document.getElementById('migrationCountInfo').textContent = `共 ${list.length} 条`;
+    if(!list.length){
+      document.getElementById('myMigrations').innerHTML = `<div style="text-align:center;padding:60px 20px;color:#94a3b8">
+        <div style="font-size:48px;margin-bottom:12px">🔄</div>
+        <div style="font-size:14px">暂无迁移记录</div>
+        <div style="font-size:12px;margin-top:6px">如果您的柜门被临时关闭，迁移信息将显示在这里</div>
+      </div>`;
+      return;
+    }
+    document.getElementById('myMigrations').innerHTML = list.map(m => {
+      const statusText = {PENDING:'等待迁移',MIGRATING:'迁移处理中',COMPLETED:'迁移完成',MANUAL:'人工处理'}[m.status] || m.status;
+      const statusDesc = {PENDING:'运营人员正在为您安排新柜门，请耐心等待',MIGRATING:'正在处理您的迁移',COMPLETED:'您的物品已迁移至新柜门',MANUAL:'已由工作人员人工处理'}[m.status] || '';
+      const route = m.status === 'COMPLETED'
+        ? `<span>原柜</span> <span class="val">${m.from_locker_id}</span> <span class="arrow">→</span> <span>新柜</span> <span class="val">${m.to_locker_id}</span>`
+        : `<span>原柜</span> <span class="val">${m.from_locker_id}</span> <span class="arrow">→</span> <span>新柜</span> <span class="val" style="color:#f59e0b">待分配</span>`;
+      const pct = m.status === 'COMPLETED' ? 100 : m.status === 'MANUAL' ? 100 : m.status === 'MIGRATING' ? 50 : 10;
+      return `<div class="migration-card mg-${m.status}">
+        <div class="mg-head">
+          <span class="mg-tid">#${m.id}</span>
+          <span class="mg-status mgs-${m.status}">${statusText}</span>
+        </div>
+        <div class="mg-route">${route}</div>
+        <div class="mg-body" style="margin-top:10px">
+          <div><span class="lbl">排队位置</span> <span class="val">#${m.queue_position || '—'}</span></div>
+          <div><span class="lbl">创建时间</span> <span class="val">${fmtTime(m.created_at)}</span></div>
+          ${m.completed_at ? `<div><span class="lbl">完成时间</span> <span class="val">${fmtTime(m.completed_at)}</span></div>` : ''}
+          ${m.operator ? `<div><span class="lbl">经办人</span> <span class="val">${m.operator}</span></div>` : ''}
+        </div>
+        <div class="mg-progress">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8">
+            <span>${statusDesc}</span>
+            <span>${pct}%</span>
+          </div>
+          <div class="mg-progress-bar"><div class="mg-progress-fill ${m.status}" style="width:${pct}%"></div></div>
+        </div>
+        ${m.note ? `<div class="mg-note">📋 ${m.note}</div>` : ''}
+      </div>`;
+    }).join('');
+  });
 }
 </script>
 </body>

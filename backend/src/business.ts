@@ -6,6 +6,7 @@ import {
   getAllLockers, getLocker, updateLocker,
   getTicketsByStatus, getTicket, updateTicket,
   refreshQueuePositions, logAudit, getRecentCompleted,
+  ClosureOrder, Migration, ClosureStatus, MigrationStatus,
 } from './models';
 
 export interface CreateTicketInput {
@@ -376,4 +377,175 @@ export function typeLabel(t: TicketType) {
 }
 export function sizeLabel(s: LockerSize) {
   return s === 'S' ? '小柜(S)' : s === 'M' ? '中柜(M)' : '大柜(L)';
+}
+
+export async function createClosureOrder(lockerIds: string[], reason: string, operator: string): Promise<ClosureOrder> {
+  return await db.transaction(async () => {
+    for (const lid of lockerIds) {
+      const l = await getLocker(lid);
+      if (!l) throw new BizError('LOCKER_NOT_FOUND', `柜门 ${lid} 不存在`);
+      if (l.status === 'FAULT') throw new BizError('LOCKER_FAULT', `柜门 ${lid} 已故障，无需闭柜`);
+    }
+
+    const affectedVisitors: { visitor_id: string; visitor_name: string; visitor_phone: string | null; from_locker_id: string }[] = [];
+    for (const lid of lockerIds) {
+      const l = await getLocker(lid);
+      if (l && l.status === 'OCCUPIED' && l.ticket_id) {
+        const t = await getTicket(l.ticket_id);
+        if (t && t.visitor_id) {
+          const already = affectedVisitors.find(v => v.visitor_id === t.visitor_id && v.from_locker_id === lid);
+          if (!already) {
+            affectedVisitors.push({
+              visitor_id: t.visitor_id,
+              visitor_name: t.visitor_name,
+              visitor_phone: t.visitor_phone,
+              from_locker_id: lid,
+            });
+          }
+        }
+      }
+    }
+
+    const id = 'CL' + uuidv4().slice(0, 6).toUpperCase();
+    const t = Date.now();
+    const order: ClosureOrder = {
+      id,
+      locker_ids: lockerIds.join(','),
+      reason,
+      operator,
+      status: affectedVisitors.length > 0 ? 'MIGRATING' : 'COMPLETED',
+      total_affected: affectedVisitors.length,
+      completed_count: 0,
+      created_at: t,
+      updated_at: t,
+      completed_at: affectedVisitors.length === 0 ? t : null,
+    };
+
+    await db.run(
+      'INSERT INTO closure_orders (id,locker_ids,reason,operator,status,total_affected,completed_count,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [order.id, order.locker_ids, order.reason, order.operator, order.status, order.total_affected, order.completed_count, order.created_at, order.updated_at, order.completed_at]
+    );
+
+    for (let i = 0; i < affectedVisitors.length; i++) {
+      const v = affectedVisitors[i];
+      const mid = 'MG' + uuidv4().slice(0, 6).toUpperCase();
+      await db.run(
+        'INSERT INTO migrations (id,closure_id,visitor_id,visitor_name,visitor_phone,from_locker_id,to_locker_id,status,operator,note,queue_position,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [mid, id, v.visitor_id, v.visitor_name, v.visitor_phone, v.from_locker_id, null, 'PENDING', null, null, i + 1, t, t, null]
+      );
+    }
+
+    for (const lid of lockerIds) {
+      await updateLocker(lid, { status: 'FAULT' });
+    }
+
+    return order;
+  });
+}
+
+export async function getClosureOrders(): Promise<ClosureOrder[]> {
+  return db.all<ClosureOrder>('SELECT * FROM closure_orders ORDER BY created_at DESC');
+}
+
+export async function getClosureOrder(id: string): Promise<ClosureOrder | undefined> {
+  return db.get<ClosureOrder>('SELECT * FROM closure_orders WHERE id = ?', [id]);
+}
+
+export async function getMigrationsByClosure(closureId: string): Promise<Migration[]> {
+  return db.all<Migration>('SELECT * FROM migrations WHERE closure_id = ? ORDER BY queue_position ASC, created_at ASC', [closureId]);
+}
+
+export async function getMigrationsByVisitor(visitorId: string): Promise<Migration[]> {
+  return db.all<Migration>('SELECT * FROM migrations WHERE visitor_id = ? ORDER BY created_at DESC', [visitorId]);
+}
+
+export async function migrateVisitor(migrationId: string, toLockerId: string, operator: string): Promise<Migration> {
+  return await db.transaction(async () => {
+    const mg = await db.get<Migration>('SELECT * FROM migrations WHERE id = ?', [migrationId]);
+    if (!mg) throw new BizError('NOT_FOUND', '迁移记录不存在');
+    if (mg.status === 'COMPLETED') throw new BizError('BAD_STATUS', '该迁移已完成');
+    if (mg.status === 'MANUAL') throw new BizError('BAD_STATUS', '该迁移已转人工处理');
+
+    const toLocker = await getLocker(toLockerId);
+    if (!toLocker) throw new BizError('LOCKER_NOT_FOUND', '目标柜门不存在');
+    if (toLocker.status !== 'IDLE') throw new BizError('LOCKER_BUSY', '目标柜门不是空闲状态');
+
+    const fromLocker = await getLocker(mg.from_locker_id);
+    if (!fromLocker || fromLocker.status !== 'OCCUPIED') throw new BizError('LOCKER_BAD_STATE', '原柜状态异常，可能已释放');
+
+    await updateLocker(mg.from_locker_id, { status: 'FAULT', ticket_id: null });
+    await updateLocker(toLockerId, { status: 'OCCUPIED', ticket_id: mg.from_locker_id });
+
+    const now = Date.now();
+    await db.run(
+      'UPDATE migrations SET to_locker_id=?, status=?, operator=?, note=?, updated_at=?, completed_at=? WHERE id=?',
+      [toLockerId, 'COMPLETED', operator, `原子迁移：${mg.from_locker_id} → ${toLockerId}`, now, now, migrationId]
+    );
+
+    const closure = await getClosureOrder(mg.closure_id);
+    if (closure) {
+      const newCompleted = closure.completed_count + 1;
+      const newStatus: ClosureStatus = newCompleted >= closure.total_affected ? 'COMPLETED' : 'MIGRATING';
+      const completedAt = newStatus === 'COMPLETED' ? now : null;
+      await db.run(
+        'UPDATE closure_orders SET completed_count=?, status=?, updated_at=?, completed_at=? WHERE id=?',
+        [newCompleted, newStatus, now, completedAt, closure.id]
+      );
+    }
+
+    const updated = await db.get<Migration>('SELECT * FROM migrations WHERE id = ?', [migrationId]);
+    return updated!;
+  });
+}
+
+export async function manualHandleMigration(migrationId: string, operator: string, note: string): Promise<Migration> {
+  return await db.transaction(async () => {
+    const mg = await db.get<Migration>('SELECT * FROM migrations WHERE id = ?', [migrationId]);
+    if (!mg) throw new BizError('NOT_FOUND', '迁移记录不存在');
+    if (mg.status === 'COMPLETED') throw new BizError('BAD_STATUS', '该迁移已完成');
+    if (mg.status === 'MANUAL') throw new BizError('BAD_STATUS', '该迁移已转人工处理');
+
+    const now = Date.now();
+    await db.run(
+      'UPDATE migrations SET status=?, operator=?, note=?, updated_at=?, completed_at=? WHERE id=?',
+      ['MANUAL', operator, note || '转人工处理', now, now, migrationId]
+    );
+
+    const closure = await getClosureOrder(mg.closure_id);
+    if (closure) {
+      const newCompleted = closure.completed_count + 1;
+      const newStatus: ClosureStatus = newCompleted >= closure.total_affected ? 'COMPLETED' : 'MIGRATING';
+      const completedAt = newStatus === 'COMPLETED' ? now : null;
+      await db.run(
+        'UPDATE closure_orders SET completed_count=?, status=?, updated_at=?, completed_at=? WHERE id=?',
+        [newCompleted, newStatus, now, completedAt, closure.id]
+      );
+    }
+
+    const updated = await db.get<Migration>('SELECT * FROM migrations WHERE id = ?', [migrationId]);
+    return updated!;
+  });
+}
+
+export async function cancelClosureOrder(closureId: string, operator: string): Promise<ClosureOrder> {
+  return await db.transaction(async () => {
+    const order = await getClosureOrder(closureId);
+    if (!order) throw new BizError('NOT_FOUND', '闭柜工单不存在');
+    if (order.status === 'COMPLETED' || order.status === 'CANCELLED') throw new BizError('BAD_STATUS', '该闭柜工单已结束');
+
+    const pendingMigrations = await db.all<Migration>(
+      "SELECT * FROM migrations WHERE closure_id = ? AND status IN ('PENDING','MIGRATING')",
+      [closureId]
+    );
+    if (pendingMigrations.length > 0) throw new BizError('HAS_PENDING', `还有 ${pendingMigrations.length} 条未完成的迁移，请先处理`);
+
+    const now = Date.now();
+    await db.run(
+      'UPDATE closure_orders SET status=?, updated_at=?, completed_at=? WHERE id=?',
+      ['CANCELLED', now, now, closureId]
+    );
+
+    const updated = await getClosureOrder(closureId);
+    return updated!;
+  });
 }

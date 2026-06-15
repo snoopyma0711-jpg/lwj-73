@@ -164,6 +164,54 @@
   .stat-q{background:#581c87;color:#d8b4fe}
   .stat-num{font-size:22px;font-weight:800;color:#f8fafc;font-variant-numeric:tabular-nums}
   .stat-lbl{font-size:12px;color:#94a3b8;margin-top:2px}
+
+  .closure-panel{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:18px;margin-top:0}
+  .closure-panel h2{font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .closure-list{display:flex;flex-direction:column;gap:10px;max-height:600px;overflow-y:auto;padding-right:4px}
+  .closure-card{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:14px}
+  .closure-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .closure-id{font-weight:800;font-variant-numeric:tabular-nums;color:#f8fafc;font-size:15px}
+  .closure-status{padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700}
+  .cs-PENDING{background:#713f12;border-color:#eab308;color:#fde047}
+  .cs-MIGRATING{background:#1e3a8a;color:#93c5fd;animation:pulse 1.5s infinite}
+  .cs-COMPLETED{background:#064e3b;color:#6ee7b7}
+  .cs-CANCELLED{background:#334155;color:#cbd5e1}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+  .closure-meta{font-size:12px;color:#94a3b8;display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  .closure-progress{background:#334155;border-radius:999px;height:6px;overflow:hidden;margin:8px 0}
+  .closure-progress-bar{height:100%;border-radius:999px;transition:width .3s}
+  .cpb-MIGRATING{background:linear-gradient(90deg,#3b82f6,#6366f1)}
+  .cpb-COMPLETED{background:#10b981}
+  .migration-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+  .migration-item{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+  .migration-info{display:flex;flex-direction:column;gap:4px}
+  .migration-name{font-size:13px;font-weight:700;color:#f1f5f9}
+  .migration-detail{font-size:11px;color:#94a3b8;display:flex;gap:10px;flex-wrap:wrap}
+  .migration-route{font-size:12px;font-weight:700;color:#a5b4fc;font-variant-numeric:tabular-nums}
+  .ms-tag{padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700}
+  .ms-PENDING{background:#713f12;color:#fde047}
+  .ms-COMPLETED{background:#064e3b;color:#6ee7b7}
+  .ms-MANUAL{background:#581c87;color:#d8b4fe}
+  .ms-MIGRATING{background:#1e3a8a;color:#93c5fd}
+  .migration-actions{display:flex;gap:6px}
+  .locker-select-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;max-height:200px;overflow-y:auto}
+  .locker-select-opt{padding:8px 6px;background:#0f172a;border:2px solid #334155;border-radius:8px;text-align:center;cursor:pointer;font-size:12px;font-weight:700;transition:all .15s;font-variant-numeric:tabular-nums}
+  .locker-select-opt:hover{border-color:#6366f1}
+  .locker-select-opt.selected{border-color:#6366f1;background:#312e81;color:#a5b4fc}
+  .locker-select-opt.used{background:#7c2d12;border-color:#f97316;color:#fdba74;cursor:default;opacity:.5}
+  .locker-select-opt.fault{background:#450a0a;border-color:#ef4444;color:#fca5a5;cursor:default;opacity:.5}
+  .locker-select-opt.closed{background:#450a0a;border-color:#ef4444;color:#fca5a5;cursor:default;opacity:.5}
+
+  .closure-locker-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;max-height:240px;overflow-y:auto}
+  .clo-locker{padding:8px 6px;background:#0f172a;border:2px solid #334155;border-radius:8px;text-align:center;cursor:pointer;font-size:11px;font-weight:700;transition:all .15s;position:relative}
+  .clo-locker:hover{border-color:#6366f1}
+  .clo-locker.selected{border-color:#ef4444;background:#450a0a;color:#fca5a5}
+  .clo-locker.IDLE{color:#6ee7b7}
+  .clo-locker.OCCUPIED{color:#fdba74}
+  .clo-locker.FAULT{color:#fca5a5;opacity:.4;cursor:not-allowed}
+  .clo-locker.RESERVED{color:#fde047}
+  .clo-locker .sz{font-size:9px;opacity:.7}
+  .clo-locker .occ-dot{position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:#f97316}
 </style>
 </head>
 <body>
@@ -180,6 +228,8 @@
     <span class="live-tag"><span class="dot"></span>实时同步中</span>
     <span class="clock" id="clock">--:--:--</span>
     <button class="btn btn-ghost btn-sm" onclick="openManualTicket()">✚ 手工登记</button>
+    <button class="btn btn-danger btn-sm" onclick="openClosureModal()">🔒 临时闭柜</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleClosurePanel()">📦 闭柜管理</button>
   </div>
 </div>
 
@@ -225,6 +275,14 @@
     <div class="panel">
       <h2>✅ 最近完成记录 <span class="badge">近30条</span></h2>
       <div class="comp-list" id="compList"></div>
+    </div>
+
+    <div class="closure-panel" id="closurePanel" style="display:none">
+      <div class="section-row">
+        <h2 style="margin-bottom:0">🔒 闭柜迁移管理 <span class="badge" id="closureBadge">0</span></h2>
+        <button class="btn btn-ghost btn-sm" onclick="loadClosureOrders()">🔄 刷新</button>
+      </div>
+      <div class="closure-list" id="closureList"></div>
     </div>
   </div>
 </div>
@@ -340,6 +398,73 @@
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('ticketModal')">取消</button>
       <button class="btn btn-primary btn-lg" onclick="submitTicket()">加入排队</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="closureModal">
+  <div class="modal" style="max-width:620px">
+    <h3>🔒 临时闭柜 - 批量关闭柜门</h3>
+    <div class="form-row">
+      <label>选择要关闭的柜门（点击选中/取消，仅可选非故障柜门）</label>
+      <div class="closure-locker-grid" id="closureLockerGrid"></div>
+      <div class="hint">已占用的柜门关闭后，系统将自动生成受影响观众的迁移名单</div>
+    </div>
+    <div class="form-row">
+      <label>闭柜原因</label>
+      <select id="closureReason">
+        <option>区域临时封闭</option>
+        <option>设备维护检修</option>
+        <option>安全隐患排查</option>
+        <option>活动场地调整</option>
+        <option>其他（请在备注说明）</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>经办人</label>
+      <input type="text" id="closureOperator" value="运营-李姐" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('closureModal')">取消</button>
+      <button class="btn btn-danger btn-lg" onclick="submitClosure()">🔒 确认闭柜</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="migrateModal">
+  <div class="modal" style="max-width:580px">
+    <h3>🔀 原子迁移 - 将观众物品移至新柜</h3>
+    <div id="migrateSummary" style="background:#0f172a;padding:14px;border-radius:10px;margin-bottom:16px;font-size:13px;line-height:1.8"></div>
+    <div class="form-row">
+      <label>选择空闲目标柜门</label>
+      <div class="locker-select-grid" id="migrateLockerGrid"></div>
+    </div>
+    <div class="form-row">
+      <label>经办人</label>
+      <input type="text" id="migrateOperator" value="运营-李姐" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('migrateModal')">取消</button>
+      <button class="btn btn-primary btn-lg" onclick="submitMigrate()">✓ 确认原子迁移</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="manualModal">
+  <div class="modal">
+    <h3>👤 转人工处理</h3>
+    <div id="manualSummary" style="background:#0f172a;padding:14px;border-radius:10px;margin-bottom:16px;font-size:13px"></div>
+    <div class="form-row">
+      <label>处理说明</label>
+      <textarea id="manualNote" placeholder="如：观众已自行取走物品、由工作人员手工处理等"></textarea>
+    </div>
+    <div class="form-row">
+      <label>经办人</label>
+      <input type="text" id="manualOperator" value="运营-李姐" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('manualModal')">返回</button>
+      <button class="btn btn-warn" onclick="submitManual()">确认转人工处理</button>
     </div>
   </div>
 </div>
@@ -734,6 +859,228 @@ function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('.modal-mask').forEach(m => {
   m.addEventListener('click', e => { if(e.target === m) m.classList.remove('show'); });
 });
+
+let closureOrders = [];
+let selectedClosureLockers = new Set();
+let pendingMigrationId = null;
+let selectedMigrateLocker = null;
+
+function toggleClosurePanel(){
+  const el = document.getElementById('closurePanel');
+  const visible = el.style.display !== 'none';
+  el.style.display = visible ? 'none' : '';
+  if(!visible) loadClosureOrders();
+}
+
+async function loadClosureOrders(){
+  try{
+    const r = await fetch('/api/closure-orders');
+    const d = await r.json();
+    if(d.ok){
+      closureOrders = d.data;
+      renderClosureOrders();
+    }
+  }catch(e){ toast('加载闭柜工单失败', 'err'); }
+}
+
+function renderClosureOrders(){
+  const list = closureOrders;
+  document.getElementById('closureBadge').textContent = list.length;
+  if(!list.length){
+    document.getElementById('closureList').innerHTML = `<div style="text-align:center;padding:30px;color:#64748b;font-size:13px">暂无闭柜工单</div>`;
+    return;
+  }
+  document.getElementById('closureList').innerHTML = list.map(o => {
+    const lockerIds = o.locker_ids.split(',');
+    const pct = o.total_affected > 0 ? Math.round(o.completed_count / o.total_affected * 100) : 100;
+    const barCls = o.status === 'COMPLETED' ? 'cpb-COMPLETED' : 'cpb-MIGRATING';
+    const statusText = {PENDING:'待处理',MIGRATING:'迁移中',COMPLETED:'已完成',CANCELLED:'已取消'}[o.status] || o.status;
+    const expandId = 'cl-detail-' + o.id;
+    return `<div class="closure-card">
+      <div class="closure-head">
+        <span class="closure-id">#${o.id}</span>
+        <span class="closure-status cs-${o.status}">${statusText}</span>
+        <span style="font-size:12px;color:#94a3b8;margin-left:auto">${fmtDateTime(o.created_at)}</span>
+        <button class="btn btn-ghost btn-sm" onclick="toggleClosureDetail('${o.id}')">📋 详情</button>
+      </div>
+      <div class="closure-meta">
+        <span>🔒 柜门: <b style="color:#f8fafc">${lockerIds.join(', ')}</b></span>
+        <span>💬 ${o.reason}</span>
+        <span>👷 ${o.operator}</span>
+      </div>
+      <div class="closure-meta">
+        <span>📊 进度: <b style="color:#f8fafc">${o.completed_count}/${o.total_affected}</b></span>
+        ${o.total_affected > 0 ? `<span style="color:#a5b4fc">${pct}%</span>` : ''}
+      </div>
+      ${o.total_affected > 0 ? `<div class="closure-progress"><div class="closure-progress-bar ${barCls}" style="width:${pct}%"></div></div>` : ''}
+      <div id="${expandId}" style="display:none"></div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleClosureDetail(closureId){
+  const el = document.getElementById('cl-detail-' + closureId);
+  if(!el) return;
+  if(el.style.display !== 'none' && el.innerHTML){
+    el.style.display = 'none';
+    return;
+  }
+  try{
+    const r = await fetch('/api/closure-orders/' + closureId);
+    const d = await r.json();
+    if(!d.ok) return;
+    const migrations = d.data.migrations || [];
+    const closureStatus = d.data.status;
+    el.innerHTML = `<div class="migration-list">
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:6px">受影响观众迁移名单：</div>
+      ${migrations.map(m => {
+        const statusText = {PENDING:'待迁移',MIGRATING:'迁移中',COMPLETED:'已完成',MANUAL:'人工处理'}[m.status] || m.status;
+        const route = m.status === 'COMPLETED' ? `<span class="migration-route">${m.from_locker_id} → ${m.to_locker_id}</span>` : `<span class="migration-route">${m.from_locker_id} → ?</span>`;
+        const actions = (m.status === 'PENDING' && (closureStatus === 'MIGRATING' || closureStatus === 'PENDING'))
+          ? `<div class="migration-actions">
+              <button class="btn btn-primary btn-sm" onclick="openMigrateModal('${m.id}','${m.from_locker_id}','${m.visitor_name}','${m.visitor_id}')">🔀 迁移</button>
+              <button class="btn btn-warn btn-sm" onclick="openManualHandle('${m.id}','${m.from_locker_id}','${m.visitor_name}','${m.visitor_id}')">👤 人工</button>
+            </div>`
+          : m.status === 'COMPLETED'
+            ? `<div class="ms-tag ms-COMPLETED">✓ 已迁移</div>`
+            : m.status === 'MANUAL'
+              ? `<div class="ms-tag ms-MANUAL">👤 人工</div>`
+              : '';
+        return `<div class="migration-item">
+          <div class="migration-info">
+            <div class="migration-name">👤 ${m.visitor_name} <span style="color:#94a3b8;font-weight:400;font-size:11px">(${m.visitor_id})</span> <span class="ms-tag ms-${m.status}">${statusText}</span></div>
+            <div class="migration-detail">
+              ${route}
+              ${m.queue_position ? `<span>排队 #${m.queue_position}</span>` : ''}
+              ${m.note ? `<span>📋 ${m.note}</span>` : ''}
+              ${m.operator ? `<span>👷 ${m.operator}</span>` : ''}
+            </div>
+          </div>
+          ${actions}
+        </div>`;
+      }).join('')}
+    </div>
+    ${(closureStatus === 'MIGRATING' || closureStatus === 'PENDING')
+      ? `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="cancelClosure('${closureId}')">✕ 取消闭柜工单</button></div>`
+      : ''}`;
+    el.style.display = '';
+  }catch(e){ toast('加载迁移详情失败', 'err'); }
+}
+
+function openClosureModal(){
+  if(!state) return;
+  selectedClosureLockers = new Set();
+  const html = state.lockers.map(l => {
+    const disabled = l.status === 'FAULT' ? 'style="pointer-events:none"' : '';
+    const occDot = l.status === 'OCCUPIED' ? '<span class="occ-dot"></span>' : '';
+    return `<div class="clo-locker ${l.status}" ${disabled} onclick="toggleClosureLocker('${l.id}', this)">
+      ${l.id} <span class="sz">${sizeLabel[l.size]}</span>
+      ${occDot}
+    </div>`;
+  }).join('');
+  document.getElementById('closureLockerGrid').innerHTML = html;
+  showModal('closureModal');
+}
+
+function toggleClosureLocker(id, el){
+  if(!state) return;
+  const l = state.lockers.find(x => x.id === id);
+  if(!l || l.status === 'FAULT') return;
+  if(selectedClosureLockers.has(id)){
+    selectedClosureLockers.delete(id);
+    el.classList.remove('selected');
+  }else{
+    selectedClosureLockers.add(id);
+    el.classList.add('selected');
+  }
+}
+
+async function submitClosure(){
+  if(selectedClosureLockers.size === 0){ toast('请至少选择一个柜门', 'err'); return; }
+  try{
+    const d = await api('/api/closure-orders', 'POST', {
+      locker_ids: Array.from(selectedClosureLockers),
+      reason: document.getElementById('closureReason').value,
+      operator: document.getElementById('closureOperator').value,
+    });
+    toast(`闭柜工单 #${d.id} 已创建，${d.total_affected} 位观众受影响`, 'ok');
+    closeModal('closureModal');
+    loadClosureOrders();
+  }catch(e){}
+}
+
+async function cancelClosure(id){
+  if(!confirm('确认取消该闭柜工单？需确保所有迁移已完成或处理。')) return;
+  try{
+    const d = await api('/api/closure-orders/' + id + '/cancel', 'POST', {operator:'运营-李姐'});
+    toast(`闭柜工单 #${d.id} 已取消`, 'ok');
+    loadClosureOrders();
+  }catch(e){}
+}
+
+function openMigrateModal(migrationId, fromLockerId, visitorName, visitorId){
+  pendingMigrationId = migrationId;
+  selectedMigrateLocker = null;
+  const fromLocker = state.lockers.find(l => l.id === fromLockerId);
+  const fromSize = fromLocker ? sizeLabel[fromLocker.size] : '';
+  document.getElementById('migrateSummary').innerHTML = `
+    <div>👤 <b>${visitorName}</b> (${visitorId})</div>
+    <div>🗄️ 原柜: <b style="color:#fdba74">${fromLockerId}</b> (${fromSize})</div>
+    <div style="color:#fbbf24;font-size:12px;margin-top:6px">⚠ 原子迁移：原柜释放并标记故障 → 目标柜立即占用，不会出现中间状态</div>
+  `;
+  const idleLockers = state.lockers.filter(l => l.status === 'IDLE' && l.id !== fromLockerId);
+  const html = idleLockers.map(l => {
+    return `<div class="locker-select-opt" onclick="selectMigrateLocker('${l.id}', this)">${l.id} <span style="font-size:10px;color:#94a3b8">${sizeLabel[l.size]}</span></div>`;
+  }).join('') || '<div style="color:#94a3b8;font-size:12px;padding:10px">暂无空闲柜门可选</div>';
+  document.getElementById('migrateLockerGrid').innerHTML = html;
+  showModal('migrateModal');
+}
+
+function selectMigrateLocker(id, el){
+  selectedMigrateLocker = id;
+  document.querySelectorAll('#migrateLockerGrid .locker-select-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function submitMigrate(){
+  if(!pendingMigrationId || !selectedMigrateLocker){ toast('请选择目标柜门', 'err'); return; }
+  try{
+    const d = await api('/api/migrations/' + pendingMigrationId + '/migrate', 'POST', {
+      to_locker_id: selectedMigrateLocker,
+      operator: document.getElementById('migrateOperator').value,
+    });
+    toast(`#${d.id} 迁移完成：${d.from_locker_id} → ${d.to_locker_id}`, 'ok');
+    closeModal('migrateModal');
+    pendingMigrationId = null;
+    selectedMigrateLocker = null;
+    loadClosureOrders();
+  }catch(e){}
+}
+
+function openManualHandle(migrationId, fromLockerId, visitorName, visitorId){
+  pendingMigrationId = migrationId;
+  document.getElementById('manualSummary').innerHTML = `
+    <div>👤 <b>${visitorName}</b> (${visitorId})</div>
+    <div>🗄️ 原柜: <b style="color:#fdba74">${fromLockerId}</b></div>
+    <div style="color:#d8b4fe;font-size:12px;margin-top:6px">⚠ 转人工处理后，该迁移将标记为「人工处理」并视为已解决</div>
+  `;
+  document.getElementById('manualNote').value = '';
+  showModal('manualModal');
+}
+
+async function submitManual(){
+  if(!pendingMigrationId) return;
+  try{
+    const d = await api('/api/migrations/' + pendingMigrationId + '/manual', 'POST', {
+      operator: document.getElementById('manualOperator').value,
+      note: document.getElementById('manualNote').value,
+    });
+    toast(`#${d.id} 已转人工处理`, 'ok');
+    closeModal('manualModal');
+    pendingMigrationId = null;
+    loadClosureOrders();
+  }catch(e){}
+}
 </script>
 </body>
 </html>

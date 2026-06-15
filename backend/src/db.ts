@@ -115,9 +115,42 @@ export async function initDB(): Promise<void> {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS closure_orders (
+      id TEXT PRIMARY KEY,
+      locker_ids TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      operator TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','MIGRATING','COMPLETED','CANCELLED')),
+      total_affected INTEGER NOT NULL DEFAULT 0,
+      completed_count INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      completed_at INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS migrations (
+      id TEXT PRIMARY KEY,
+      closure_id TEXT NOT NULL,
+      visitor_id TEXT NOT NULL,
+      visitor_name TEXT NOT NULL,
+      visitor_phone TEXT,
+      from_locker_id TEXT NOT NULL,
+      to_locker_id TEXT,
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','MIGRATING','COMPLETED','MANUAL')),
+      operator TEXT,
+      note TEXT,
+      queue_position INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      completed_at INTEGER
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
     CREATE INDEX IF NOT EXISTS idx_tickets_visitor ON tickets(visitor_id, status);
     CREATE INDEX IF NOT EXISTS idx_lockers_status ON lockers(status);
+    CREATE INDEX IF NOT EXISTS idx_migrations_closure ON migrations(closure_id);
+    CREATE INDEX IF NOT EXISTS idx_migrations_visitor ON migrations(visitor_id, status);
+    CREATE INDEX IF NOT EXISTS idx_closure_status ON closure_orders(status);
   `);
 }
 
